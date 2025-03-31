@@ -1,5 +1,5 @@
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import declarative_base, relationship # Updated import
+from sqlalchemy import Column, Integer, String, DateTime, func, ForeignKey, Unicode
 
 Base = declarative_base()
 
@@ -12,6 +12,18 @@ class BlogPost(Base):
     author = Column(String(255), nullable=False)
     image_url = Column(String(255), nullable=True)
     vedio_url = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
 
+    reactions = relationship("PostReaction", back_populates="post", cascade="all, delete-orphan")
     def __repr__(self):
-        return f"<BlogPost(title='{self.title}', author_id={self.author_id})>"
+        return f"<BlogPost(title='{self.title}', author={self.author})>"
+
+class PostReaction(Base):
+    __tablename__ = "post_reactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("blog_posts.id", ondelete="CASCADE"))
+    reaction_type = Column(Unicode, nullable=False)  # Unicode supports emojis
+    count = Column(Integer, default=1)
+
+    post = relationship("BlogPost", back_populates="reactions")
