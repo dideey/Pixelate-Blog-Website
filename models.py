@@ -3,6 +3,14 @@ from sqlalchemy import Column, Integer, String, DateTime, func, ForeignKey, Unic
 
 Base = declarative_base()
 
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(255), unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+
 class BlogPost(Base):
     __tablename__ = 'blog_posts'
     

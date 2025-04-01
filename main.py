@@ -3,14 +3,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_session
 from sqlalchemy import func
-from models import BlogPost, PostReaction
+from models import BlogPost, PostReaction, User
 from sqlalchemy.future import select
 from typing import Optional
 import os
 from uuid import uuid4
 import shutil
 from fastapi.staticfiles import StaticFiles
-
+from auth import verify_password, get_password_hash, create_access_token
+from fastapi.security import OAuth2PasswordBearer
+from auth import decode_access_token
 
 
 
@@ -198,3 +200,76 @@ async def remove_reaction(
 
     await db.commit()
     return {"message": "Reaction removed", "reaction": reaction_type, "remaining_count": reaction.count}
+
+@app.get("/search/")
+async def search_posts(
+    query: str,
+    db: AsyncSession = Depends(get_session),
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    total_count = await db.scalar(
+        select(func.count(BlogPost.id)).where(
+            BlogPost.title.ilike(f"%{query}%") |
+            BlogPost.content.ilike(f"%{query}%") |
+            BlogPost.author.ilike(f"%{query}%")
+        )
+    )
+    result = await db.execute(
+        select(BlogPost).where(
+            BlogPost.title.ilike(f"%{query}%") |
+            BlogPost.content.ilike(f"%{query}%") |
+            BlogPost.author.ilike(f"%{query}%")
+        ).offset(offset).limit(limit)
+    )
+    posts = result.scalars().all()
+    return {"total_count": total_count, "posts": posts}
+
+
+@app.post("/register/")
+async def register_user(username: str, password: str, db: AsyncSession = Depends(get_session)):
+    # Check if the username already exists
+    result = await db.execute(select(User).where(User.username == username))
+    existing_user = result.scalar_one_or_none()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+
+    # Create a new user
+    hashed_password = get_password_hash(password)
+    new_user = User(username=username, hashed_password=hashed_password)
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return {"message": "User registered successfully"}
+
+@app.post("/login/")
+async def login_user(username: str, password: str, db: AsyncSession = Depends(get_session)):
+    # Retrieve the user
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalar_one_or_none()
+    if not user or not verify_password(password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    # Generate a JWT token
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_session)):
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    username = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+@app.get("/protected/")
+async def protected_route(current_user: User = Depends(get_current_user)):
+    return {"message": f"Hello, {current_user.username}"}
