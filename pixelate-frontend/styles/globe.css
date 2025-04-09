@@ -1,0 +1,53 @@
+/* Add to your global.css or create hero-globe.css and import it */
+.stars-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background-color: white;
+    border-radius: 50%;
+    opacity: 0;
+    animation: twinkle linear infinite;
+  }
+  
+  @keyframes twinkle {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  
+  .earth-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  
+  .earth {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: linear-gradient(30deg, #1e88e5, #1565c0);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    animation: rotate 20s linear infinite;
+    position: relative;
+  }
+  
+  .glow {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    box-shadow: 0 0 50px rgba(78, 196, 255, 0.6);
+    filter: blur(10px);
+  }
+  
+  @keyframes rotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
