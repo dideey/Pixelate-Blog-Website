@@ -8,7 +8,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(255), unique=True, nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=True)
     hashed_password = Column(String, nullable=False)
 
 class BlogPost(Base):
@@ -19,7 +19,6 @@ class BlogPost(Base):
     content = Column(String, nullable=False)
     author = Column(String(255), nullable=False)
     image_url = Column(String(255), nullable=True)
-    vedio_url = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     reactions = relationship("PostReaction", back_populates="post", cascade="all, delete-orphan")

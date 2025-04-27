@@ -13,13 +13,27 @@ from fastapi.staticfiles import StaticFiles
 from auth import verify_password, get_password_hash, create_access_token
 from fastapi.security import OAuth2PasswordBearer
 from auth import decode_access_token
-
+from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI()
 UPLOAD_DIR = "uploads/"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Allow requests from your frontend's origin
+origins = [
+    "http://localhost:3000",  # Frontend origin
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
+
 
 @app.post("/posts/")
 async def create_post(
@@ -227,31 +241,31 @@ async def search_posts(
 
 
 @app.post("/register/")
-async def register_user(username: str, password: str, db: AsyncSession = Depends(get_session)):
+async def register_user(email: str, password: str, db: AsyncSession = Depends(get_session)):
     # Check if the username already exists
-    result = await db.execute(select(User).where(User.username == username))
+    result = await db.execute(select(User).where(User.email == email))
     existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
 
     # Create a new user
     hashed_password = get_password_hash(password)
-    new_user = User(username=username, hashed_password=hashed_password)
+    new_user = User(email=email, hashed_password=hashed_password)
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
     return {"message": "User registered successfully"}
 
 @app.post("/login/")
-async def login_user(username: str, password: str, db: AsyncSession = Depends(get_session)):
+async def login_user(email: str, password: str, db: AsyncSession = Depends(get_session)):
     # Retrieve the user
-    result = await db.execute(select(User).where(User.username == username))
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user or not verify_password(password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
 
     # Generate a JWT token
-    access_token = create_access_token(data={"sub": user.username})
+    access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
